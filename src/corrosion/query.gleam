@@ -1,9 +1,10 @@
-import corrosion/internal/query_event
 import corrosion/internal/util
+import corrosion/query_event
 import corrosion/statement
 import gleam/bit_array
 import gleam/bool
 import gleam/bytes_tree
+import gleam/dynamic
 import gleam/dynamic/decode
 import gleam/http/request
 import gleam/json
@@ -13,11 +14,15 @@ import gleam/string
 import gleam/uri
 import httpp/send
 
+pub type QueryResult(datatype) {
+  QueryResult(rows: List(datatype), time: Float)
+}
+
 pub fn query(
   corro_uri: uri.Uri,
   statement: statement.Statement,
   row_decoder: decode.Decoder(datatype),
-) -> Result(List(datatype), String) {
+) -> Result(QueryResult(datatype), String) {
   let uri = uri.Uri(..corro_uri, path: "/v1/queries")
   let body =
     util.statement_to_json(statement)
@@ -54,18 +59,46 @@ pub fn query(
 
   use events <- result.try(events)
 
-  let event_handler = query_event.new_event_handler(row_decoder)
-  use applied_events <- result.try(
-    list.fold(events, Ok(event_handler), fn(acc, event) {
-      use handler <- result.try(acc)
-      query_event.handle_event(handler, event)
-    }),
-  )
+  map_events(events, [], row_decoder)
+}
 
-  use rows <- result.try(
-    query_event.get_sorted(applied_events)
-    |> result.replace_error("Server did not send an end-of-query event."),
+fn map_events(
+  events: List(query_event.QueryEvent),
+  columns: List(String),
+  decoder: decode.Decoder(datatype),
+) -> Result(QueryResult(datatype), String) {
+  use <- bool.guard(
+    when: list.is_empty(events),
+    return: Ok(QueryResult(rows: [], time: 0.0)),
   )
+  let assert [event, ..remaining_events] = events
 
-  Ok(rows)
+  case event {
+    query_event.Columns(cols) -> map_events(remaining_events, cols, decoder)
+    query_event.Row(rowid: _, values:) -> {
+      let zipped =
+        list.map(columns, dynamic.string)
+        |> list.strict_zip(values)
+        |> result.map(dynamic.properties)
+        |> result.replace_error(
+          "Columns array is a different size from values.",
+        )
+
+      use dynamic <- result.try(zipped)
+
+      let decode_result =
+        decode.run(dynamic, decoder)
+        |> result.replace_error("Could not decode value from server.")
+
+      use value <- result.try(decode_result)
+
+      case map_events(remaining_events, columns, decoder) {
+        Ok(mapped) -> Ok(QueryResult(..mapped, rows: [value, ..mapped.rows]))
+        error -> error
+      }
+    }
+    query_event.EOQ(time:, change_id: _) -> Ok(QueryResult(rows: [], time:))
+    query_event.Change(..) -> Error("/v1/query received a change event.")
+    query_event.QueryError(message:) -> Error(message)
+  }
 }

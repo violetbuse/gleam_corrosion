@@ -1,4 +1,3 @@
-import gleam/http/request
 import gleam/option
 import gleam/result
 import gleam/uri
