@@ -1,0 +1,14 @@
+[db]
+path = "./corrosion.db"
+schema_paths = ["./corrosion.sql"]
+
+[gossip]
+addr = "[::]:8787"
+external_addr= "[::1]:8787"
+plaintext = true
+
+[api]
+addr = "127.0.0.1:8080"
+
+[admin]
+path = "./corrosion.admin.sock"
