@@ -5,7 +5,6 @@ import gleam/dynamic/decode
 import gleam/int
 import gleam/list
 import gleam/option
-import gleam/result
 
 pub type QueryEvent {
   Columns(column_names: List(String))
