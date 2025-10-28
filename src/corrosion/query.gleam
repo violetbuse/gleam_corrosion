@@ -88,7 +88,9 @@ fn map_events(
 
       let decode_result =
         decode.run(dynamic, decoder)
-        |> result.lazy_or(fn() { decode.run(dynamic.list(values), decoder) })
+        |> result.try_recover(fn(_) {
+          decode.run(dynamic.list(values), decoder)
+        })
         |> result.replace_error("Could not decode value from server.")
 
       use value <- result.try(decode_result)

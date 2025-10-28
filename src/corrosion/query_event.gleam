@@ -1,3 +1,5 @@
+//// This module allows for decoding query events returned by /v1/queries and /v1/subscriptions
+
 import gleam/dynamic
 import gleam/dynamic/decode
 import gleam/option

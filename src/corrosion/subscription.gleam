@@ -67,7 +67,7 @@ fn initialize(
   actor.Initialised(State(datatype), InternalMessage, process.Subject(Message)),
   String,
 ) {
-  let uri = uri.Uri(..corro_uri, path: "/v1/queries")
+  let uri = uri.Uri(..corro_uri, path: "/v1/subscriptions")
   let body =
     util.statement_to_json(statement)
     |> json.to_string_tree

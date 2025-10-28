@@ -1,6 +1,6 @@
 [db]
 path = "./corrosion.db"
-schema_paths = ["./corrosion.sql"]
+schema_paths = ["./corrosion_schema.sql"]
 
 [gossip]
 addr = "[::]:8787"
